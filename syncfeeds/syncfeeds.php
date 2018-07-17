@@ -175,26 +175,38 @@ class SyncFeeds extends Module
             }
         }
 
-        $this->_html .= '<h2>' . $this->displayName . '</h2>';
         $this->displayForm();
         return $this->_html;
     }
 
     private function displayForm()
     {
-        $this->_html .= '<form enctype="multipart/form-data" action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '" method="post">';
+        $this->_html .= '<div id="modulo-syncfeeds">';
+								$this->_html .= '<form enctype="multipart/form-data" action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '" method="post">';
         $this->_html .= '<fieldset>
             <legend>' . $this->l('Configuration') . '</legend>';
-        if (Db::getInstance()->getValue('SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'syncfeeds_category'))
+        
+								
+								
+								
+								//Informacion generación de crones.  Sale solo si se hay datos en la tabla syncfeeds_category
+								if (Db::getInstance()->getValue('SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'syncfeeds_category'))
         {
             $token = Tools::encrypt($this->name);
-            $this->_html .= '<p>' . $this->l('For set an automatic processing you must set a cron with these URL') . ':</p>
+            $this->_html .=
+												'<div class="seccion">' .
+												'<p class="relevante">' . $this->l('For set an automatic processing you must set a cron with these URL') . ':</p>
             <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_productos_syncfeeds.php?token=' . $token . '</p>
             <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_stock_syncfeeds.php?token=' . $token . '</p>
             <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_precios_syncfeeds.php?token=' . $token . '</p>
             <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_demand_syncfeeds.php?token=' . $token . '</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_sales_syncfeeds.php?token=' . $token . '</p>';
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_sales_syncfeeds.php?token=' . $token . '</p>' .
+												'</div>'
+												;
         }
+								
+								//Configuracion FTP Lowe's
+								$this->_html .= '<div class="seccion">';
         $this->_html .= '<label for="SF_FTP">' . $this->l('FTP IP Address') . '</label>
         <div class="margin-form">
             <input type="text" name="SF_FTP" id="SF_FTP" value="' . Configuration::getGlobalValue('SF_FTP') . '" />
@@ -207,7 +219,10 @@ class SyncFeeds extends Module
         <div class="margin-form">
             <textarea type="text" name="SF_PRIVATE_KEY" id="SF_PRIVATE_KEY" cols="80" rows="10">' . Configuration::getGlobalValue('SF_PRIVATE_KEY') . '</textarea>
         </div>';
-
+										$this->_html .= '</div>';
+										
+								//Estados de ordenes
+								$this->_html .= '<div class="seccion">';
         $estados_pedido = OrderState::getOrderStates($this->context->language->id);
         $this->_html .= '<label for="SF_DEMAND_NEW">' . $this->l('New State for Demand File Generation') . '</label>
           <div class="margin-form">
@@ -237,13 +252,20 @@ class SyncFeeds extends Module
             $this->_html .= '<option value="' . $estado['id_order_state'] . '" ' . ($estado['id_order_state'] == Configuration::getGlobalValue('SF_SALES_RETURN') ? 'selected' : '') . '>' . $estado['name'] . '</option>';
         $this->_html .= '</select>
           </div></br>';
+										
+										$this->_html .= '</div>';
+										
+										//Configuracion numeros de tienda lowes para las Multitiendas de Prestashop
+										$this->_html .= '<div class="seccion">';
 
         foreach (Shop::getShops() as $shop)
             $this->_html .= '<label for="SF_SHOP_' . $shop['id_shop'] . '">' . $this->l('Lowes Shop Number for Shop') . ' "' . $shop['name'] . '"</label>
             <div class="margin-form">
                 <input type="text" name="SF_SHOP_' . $shop['id_shop'] . '" id="SF_SHOP_' . $shop['id_shop'] . '" value="' . Configuration::getGlobalValue('SF_SHOP_' . $shop['id_shop']) . '" />
             </div></br>';
-
+										$this->_html .= '</div>';
+										
+										
         $this->_html .= '<p class="center">
                             <input type="submit" class="button" name="submitSave" value="' . $this->l('Save') . '" />
                         </p>';
@@ -263,10 +285,32 @@ class SyncFeeds extends Module
         $this->_html .= '</p></fieldset>
         </fieldset>';
 
-        $this->_html .= '</fieldset></form>';
+        $this->_html .= '</fieldset></form></div>';
+								
+								$style = '
+										<style>
+										#modulo-syncfeeds{    width: 85%;MARGIN: 20PX 0;}
+										.seccion{    border: solid 2px darkblue; padding: 5px;  margin: 20px 0;}
+										.relevante{font-weight:bold;}
+										.nobootstrap .button{    background: darkblue;
+														color: white;
+														padding: 10px;
+														width: 100px;
+														border-radius: 7px;}
+										.nobootstrap .button:hover{border:solid 1px white; font-size:13px;}
+										.nobootstrap label{width:380px; margin-right: 20px;}
+										</style>
+								';
+								
+								$this->_html .= $style;
+								
+								
     }
 
-    public function sincronizarProductos()
+    /*
+				Esta funcion permite que se desde un archivo expuesto en ftp de Lowes se tome la informacion de nuevos productos
+				*/
+				public function sincronizarProductos()
     {
         if (function_exists('set_time_limit'))
             @set_time_limit(0);
