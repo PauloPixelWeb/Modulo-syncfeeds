@@ -207,11 +207,11 @@ class SyncFeeds extends Module
             $this->_html .=
 												'<div class="seccion">' .
 												'<p class="relevante">' . $this->l('For set an automatic processing you must set a cron with these URL') . ':</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_productos_syncfeeds.php?token=' . $token . '</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_stock_syncfeeds.php?token=' . $token . '</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_precios_syncfeeds.php?token=' . $token . '</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_demand_syncfeeds.php?token=' . $token . '</p>
-            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_sales_syncfeeds.php?token=' . $token . '</p>' .
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_productos_syncfeeds.php?token=' . $token . ' - <a href="' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_productos_syncfeeds.php?token=' . $token . '" target="_blank">Ejecutar</a></p>
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_stock_syncfeeds.php?token=' . $token . ' - <a href="' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_stock_syncfeeds.php?token=' . $token . '" target="_blank">Ejecutar</a></p>
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_precios_syncfeeds.php?token=' . $token . ' - <a href="' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_precios_syncfeeds.php?token=' . $token . '" target="_blank">Ejecutar</a></p>
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_demand_syncfeeds.php?token=' . $token . ' - <a href="' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_demand_syncfeeds.php?token=' . $token . '" target="_blank">Ejecutar</a></p>
+            <p>' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_sales_syncfeeds.php?token=' . $token . ' - <a href="' . Context::getContext()->shop->getBaseURL() . 'modules/' . $this->name . '/cron_sales_syncfeeds.php?token=' . $token . '" target="_blank">Ejecutar</a></p>' .
 												'</div>'
 												;
         }
@@ -1024,7 +1024,7 @@ echo "<br>";
             $this->saveLog('Metodo: sincronizarPedidosDemand, guardando: XML local => ' . $e->getMessage());
         }
 
-										//Expone archivo XML en el servidor de LOWES
+
 								$this->subirFicheroXML();
         return true;
     }
