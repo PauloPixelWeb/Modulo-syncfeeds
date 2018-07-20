@@ -69,7 +69,16 @@ class SyncFeeds extends Module
 
     public function install()
     {
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS ' . _DB_PREFIX_ . 'syncfeeds (
+       
+							//Estandarisa estados de ordenes
+					   $idLang = Db::getInstance()->getValue("select id_lang from "._DB_PREFIX_."lang where language_code = 'es'");
+															//Pago Cancelado
+															Db::getIntance()->execute("update "._DB_PREFIX_."order_state_lang set name='Pedido Cancelado' where id_order_state = 6 and id_lang=".$idLang);
+															Db::getIntance()->execute("update "._DB_PREFIX_."order_state_lang set name='Pedido Entregado',template='order_delivered' where id_order_state = 5 and id_lang=".$idLang);
+															Db::getIntance()->execute("update "._DB_PREFIX_."order_state set send_email=1 where id_order_state = 5");
+									
+							//Creacion de tablas especiales del modulo
+					  Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS ' . _DB_PREFIX_ . 'syncfeeds (
                         id_syncfeeds int(10) unsigned NOT NULL Key AUTO_INCREMENT,
                         id_minorista int(10) unsigned NOT NULL,
                         distribuidor VARCHAR(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
@@ -100,9 +109,9 @@ class SyncFeeds extends Module
 
     public function uninstall()
     {
-        Db::getInstance()->execute('DROP table IF  EXISTS ' . _DB_PREFIX_ . 'syncfeeds');
-        Db::getInstance()->execute('DROP table IF  EXISTS ' . _DB_PREFIX_ . 'syncfeeds_category');
-
+        //Db::getInstance()->execute('DROP table IF  EXISTS ' . _DB_PREFIX_ . 'syncfeeds');
+        //Db::getInstance()->execute('DROP table IF  EXISTS ' . _DB_PREFIX_ . 'syncfeeds_category');
+/*
         return (parent::uninstall() &&
                 Configuration::deleteByName('SF_FTP') &&
                 Configuration::deleteByName('SF_USUARIO') &&
@@ -113,7 +122,9 @@ class SyncFeeds extends Module
                 Configuration::deleteByName('SF_SALES_RETURN', '') &&
                 Configuration::deleteByName('SF_DEMAND_NEW', '') &&
                 Configuration::deleteByName('SF_DEMAND_CANCEL', '')
-                );
+                );*/
+																
+																return parent::uninstall;
     }
 
     public function getContent()
@@ -207,6 +218,7 @@ class SyncFeeds extends Module
 								
 								//Configuracion FTP Lowe's
 								$this->_html .= '<div class="seccion">';
+								$this->_html .= '<p class="relevante">' . $this->l('FTP Conection settings') . ':</p>';
         $this->_html .= '<label for="SF_FTP">' . $this->l('FTP IP Address') . '</label>
         <div class="margin-form">
             <input type="text" name="SF_FTP" id="SF_FTP" value="' . Configuration::getGlobalValue('SF_FTP') . '" />
@@ -223,6 +235,7 @@ class SyncFeeds extends Module
 										
 								//Estados de ordenes
 								$this->_html .= '<div class="seccion">';
+								$this->_html .= '<p class="relevante">' . $this->l('Order States Settings') . ':</p>';
         $estados_pedido = OrderState::getOrderStates($this->context->language->id);
         $this->_html .= '<label for="SF_DEMAND_NEW">' . $this->l('New State for Demand File Generation') . '</label>
           <div class="margin-form">
@@ -257,7 +270,7 @@ class SyncFeeds extends Module
 										
 										//Configuracion numeros de tienda lowes para las Multitiendas de Prestashop
 										$this->_html .= '<div class="seccion">';
-
+										$this->_html .= '<p class="relevante">' . $this->l('Lowes number on Prestashop multistore') . ':</p>';
         foreach (Shop::getShops() as $shop)
             $this->_html .= '<label for="SF_SHOP_' . $shop['id_shop'] . '">' . $this->l('Lowes Shop Number for Shop') . ' "' . $shop['name'] . '"</label>
             <div class="margin-form">
@@ -276,14 +289,22 @@ class SyncFeeds extends Module
         $this->_html .= '<form enctype="multipart/form-data" action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '" method="post">';
         $this->_html .= '<fieldset>
             <legend>' . $this->l('Category Link') . '</legend>';
-        $this->_html .= '<label for="dm_csv">' . $this->l('Import Category Link by CSV File') . '</label>
+        
+								//Subir archivo de link de categorias.
+								$this->_html .= '<div class="seccion">';
+								$this->_html .= '<label for="dm_csv">' . $this->l('Import Category Link by CSV File') . '</label>
             <div class="margin-form">
                 <input type="file" name="dm_csv" id="dm_csv" />
             </div>';
         $this->_html .= '<p class="center">
                         <input type="submit" class="button" name="submitSave" value="' . $this->l('Import') . '" /> ';
-        $this->_html .= '</p></fieldset>
-        </fieldset>';
+        $this->_html .= '</p>';
+								$this->_html .= '</div>';
+								
+								
+								
+								$this->_html .= '</fieldset>';
+        
 
         $this->_html .= '</fieldset></form></div>';
 								
@@ -291,7 +312,9 @@ class SyncFeeds extends Module
 										<style>
 										#modulo-syncfeeds{    width: 85%;MARGIN: 20PX 0;}
 										.seccion{    border: solid 2px darkblue; padding: 5px;  margin: 20px 0;}
-										.relevante{font-weight:bold;}
+										.relevante{font-weight: bold;
+														text-transform: uppercase;
+														text-decoration: underline;}
 										.nobootstrap .button{    background: darkblue;
 														color: white;
 														padding: 10px;
@@ -308,10 +331,11 @@ class SyncFeeds extends Module
     }
 
     /*
-				Esta funcion permite que se desde un archivo expuesto en ftp de Lowes se tome la informacion de nuevos productos
+				Esta funcion permite que desde un archivo expuesto en ftp de Lowes se tome la informacion de nuevos productos
 				*/
 				public function sincronizarProductos()
     {
+										echo "<p>- FUNCION SINCRONIZAR PRODUCTOS -</p>";
         if (function_exists('set_time_limit'))
             @set_time_limit(0);
         if ((int) Tools::substr(ini_get("memory_limit"), 0, -1) < 512)
@@ -319,7 +343,8 @@ class SyncFeeds extends Module
 
         if ($this->descargarFicheroXML(self::TIPO_PRODUCTO))
         {
-            $idiomas = Language::getLanguages();
+            echo "<p>... Se ha descargardo el fichero</p>";
+												$idiomas = Language::getLanguages();
             $limite_descripcion_corta = (int) Configuration::get('PS_PRODUCT_SHORT_DESC_LIMIT');
             if ($limite_descripcion_corta <= 0)
                 $limite_descripcion_corta = 800;
@@ -348,11 +373,21 @@ class SyncFeeds extends Module
                                     continue;
                                 Configuration::updateGlobalValue('SF_ACTUALIZACION_PARCIAL', $data[0]);
 
-                                $id_producto = Db::getInstance()->getValue('SELECT `id_product` FROM ' . _DB_PREFIX_ . 'product WHERE `reference`="' . $data[0] . '"');
-                                if ($id_producto)
-                                {echo "Actualización de Producto: $id_producto<br/>";
-                                    $producto = new Product($id_producto);
-                                    foreach ($idiomas as $idioma)
+                                //Carga el ID del producto ya que el control de estos se hace a travez de la referencia
+																																$id_producto = Db::getInstance()->getValue('SELECT `id_product` FROM ' . _DB_PREFIX_ . 'product WHERE `reference`="' . $data[0] . '"');
+                                
+																																//Se procesa el producto cargado si existe, sino se procesa un nuevo producto.
+																																if ($id_producto)
+                                {
+																																		
+																																			echo "Actualización de Producto: $id_producto<br/>";
+																																		
+																																								//Instancia del producto
+																																				$producto = new Product($id_producto);
+																																		
+																																		
+																																								//Varibles tipo lang, que varían con la traduccion.
+																																				foreach ($idiomas as $idioma)
                                         $producto->name[$idioma['id_lang']] = Tools::truncate(str_replace($caracteres_invalidos, '', $data[1]), 128, '');
                                     foreach ($idiomas as $idioma)
                                         $producto->description_short[$idioma['id_lang']] = Tools::truncate($data[4], $limite_descripcion_corta);
@@ -361,7 +396,8 @@ class SyncFeeds extends Module
                                     foreach ($idiomas as $idioma)
                                         $producto->link_rewrite[$idioma['id_lang']] = Tools::truncate(Tools::str2url(str_replace($caracteres_invalidos, '', $data[1])), 128, '');
 
-                                    $id_categorias_producto = array();
+																																		  //Proceso de categorías, el archivo trae el codigo de la ERP y se usa la tabla de correspondencias previamente cargada en el prestashop.
+																																				$id_categorias_producto = array();
                                     if (isset($data[13]) && $data[13])
                                         foreach (explode('|', $data[13]) as $id_cat_lowes)
                                             if ($id_cat_presta = Db::getInstance()->getValue('SELECT `id_prestashop` FROM `' . _DB_PREFIX_ . 'syncfeeds_category` WHERE `id_lowes`="' . trim($id_cat_lowes) . '"'))
@@ -377,10 +413,16 @@ class SyncFeeds extends Module
                                     $producto->addToCategories($id_categorias_producto);
                                 }
                                 else
-                                {echo "Nuevo Producto!<br/>";
+                                {
+																																			  //Proceso para un nuevo producto
+																																			  echo "Nuevo Producto!<br/>";
                                     //es un producto que no ha sido importado aun
-                                    $producto = new Product();
-                                    foreach ($idiomas as $idioma)
+																																		
+																																								//Instancia del producto
+																																				$producto = new Product();
+																																		
+																																								//Varibles tipo lang, que varían con la traduccion.
+																																				foreach ($idiomas as $idioma)
                                         $producto->name[$idioma['id_lang']] = Tools::truncate(str_replace($caracteres_invalidos, '', $data[1]), 128, '');
                                     foreach ($idiomas as $idioma)
                                         $producto->description_short[$idioma['id_lang']] = Tools::truncate($data[4], $limite_descripcion_corta);
@@ -389,7 +431,8 @@ class SyncFeeds extends Module
                                     foreach ($idiomas as $idioma)
                                         $producto->link_rewrite[$idioma['id_lang']] = Tools::truncate(Tools::str2url(str_replace($caracteres_invalidos, '', $data[1])), 128, '');
 
-                                    $id_categorias_producto = array();
+																																		  //Proceso de categorías, el archivo trae el codigo de la ERP y se usa la tabla de correspondencias previamente cargada en el prestashop.
+																																				$id_categorias_producto = array();
                                     if (isset($data[13]) && $data[1])
                                         foreach (explode('|', $data[13]) as $id_cat_lowes)
                                             if ($id_cat_presta = Db::getInstance()->getValue('SELECT `id_prestashop` FROM `' . _DB_PREFIX_ . 'syncfeeds_category` WHERE `id_lowes`="' . trim($id_cat_lowes) . '"'))
@@ -402,7 +445,8 @@ class SyncFeeds extends Module
                                     }
                                     $producto->reference = $data[0];
 
-                                    $id_fabricante = SyncFeedsModel::getIdMinoristaDadoIdDistribuidor($data[2], 'fabricante');
+																																								//Proceso Fabricante
+																																				$id_fabricante = SyncFeedsModel::getIdMinoristaDadoIdDistribuidor($data[2], 'fabricante');
                                     if (!$id_fabricante && $data[2])
                                     {
                                         $manufacturer = new Manufacturer();
@@ -427,7 +471,7 @@ class SyncFeeds extends Module
                                             $producto->addToCategories($id_categorias_producto);
                                             $producto->checkDefaultAttributes();
 
-                                            //marca
+                                            //Proceso para Marca
                                             if ($data[2])
                                             {
                                                 $id_caracteristica = SyncFeedsModel::getIdMinoristaDadoIdDistribuidor('Marca', 'caracteristica');
@@ -457,7 +501,7 @@ class SyncFeeds extends Module
                                                 if ($id_caracteristica && $id_caracteristica_valor)
                                                     Product::addFeatureProductImport((int) $producto->id, $id_caracteristica, $id_caracteristica_valor);
                                             }
-                                            //modelo
+                                            //Proceso para Modelo
                                             if ($data[3])
                                             {
                                                 $id_caracteristica = SyncFeedsModel::getIdMinoristaDadoIdDistribuidor('Modelo', 'caracteristica');
@@ -578,7 +622,8 @@ class SyncFeeds extends Module
         }
         else
         {
-            $this->saveLog('Error descargando fichero');
+            echo "<p>... Hubo un error al Descargar el fichero de Productos.</p>";
+												$this->saveLog('Error descargando fichero');
             return false;
         }
 
@@ -587,14 +632,16 @@ class SyncFeeds extends Module
 
     public function sincronizarSku()
     {
-        if (function_exists('set_time_limit'))
+        echo "<p>- FUNCION SINCRONIZAR SKU -</p>";
+								if (function_exists('set_time_limit'))
             @set_time_limit(0);
         if ((int) Tools::substr(ini_get("memory_limit"), 0, -1) < 512)
             ini_set("memory_limit", "512M");
 
         if ($this->descargarFicheroXML(self::TIPO_SKU))
         {
-            $archivos = Tools::scandir(dirname(__FILE__) . '/ficheros/', 'txt');
+            echo "<p>... Se descargaron ficheros SKU</p>";
+												$archivos = Tools::scandir(dirname(__FILE__) . '/ficheros/', 'txt');
             sort($archivos);
             foreach ($archivos as $archivo)
                 if (strpos($archivo, 'sku_') === 0)
@@ -628,14 +675,19 @@ class SyncFeeds extends Module
         }
         else
         {
-            $this->saveLog('Error descargando fichero');
+            echo "<p>... Hubo un error descargando el fichero de SKU</p>";
+												$this->saveLog('Error descargando fichero');
             return false;
         }
 
         return false;
     }
 
-    public function sincronizarExistencias()
+    
+				/*
+										Actualizacion de stock en las diferentes tiendas a partir del archivo expuesto por LOWES
+				*/
+				public function sincronizarExistencias()
     {
         if (function_exists('set_time_limit'))
             @set_time_limit(0);
@@ -657,13 +709,13 @@ class SyncFeeds extends Module
                                 while (( $data = fgetcsv($fp, 50, "|")) !== FALSE)
                                     if (isset($tiendas[$data[1]]))
                                         if ($id_producto = (int) Db::getInstance()->getValue('SELECT `id_product` FROM ' . _DB_PREFIX_ . 'product WHERE `reference`="' . $data[0] . '"')){
-                                            StockAvailable::setQuantity($id_producto, 0, (int) $data[2], $tiendas[$data[1]]);
-                                            #echo "$id_producto";
+																																													//Esta funcion actualiza el stock disponible en la base de datos.
+																																												StockAvailable::setQuantity($id_producto, 0, (int) $data[2], $tiendas[$data[1]]);
+																																		
                                             Hook::exec('actionUpdateQuantitySyncfeeds', 
                                                     array('product' => $id_producto,
                                                         'stock' => $data[2],
                                                         'shop' => $tiendas[$data[1]],));
-                                            #die;                                        
                                         }
                                 fclose($fp);
                                 Tools::deleteFile($archivo);
@@ -1237,7 +1289,11 @@ echo "<br>";
         return true;
     }
 
-    private function descargarFicheroXML($tipo = 0)
+
+					/*
+										Esta funcion permite acceder a los archivos expuestos por FTP en el servidor de LOWES
+					*/
+				private function descargarFicheroXML($tipo = 0)
     {
         if ($tipo == self::TIPO_PRODUCTO && Configuration::getGlobalValue('SF_ACTUALIZACION_PARCIAL'))
             return true;
@@ -1258,24 +1314,25 @@ echo "<br>";
             $sftp = new Net_SFTP(Configuration::getGlobalValue('SF_FTP'));
             if ($sftp->login(Configuration::getGlobalValue('SF_USUARIO'), $key))
             {
-                //WAC cambiar la ruta cuando pase a produccion
+                
+																//WAC cambiar la ruta cuando pase a Produccion o a Desarrollo
                 switch ($tipo)
                 {
                     case self::TIPO_PRODUCTO:
                         {
-                            $ruta = self::RUTA_FTP_ENTRADA_PRODUCTO;
+                            $ruta = self::RUTA_FTP_ENTRADA_PRODUCTO_TEST;
                         } break;
                     case self::TIPO_SKU:
                         {
-                            $ruta = self::RUTA_FTP_ENTRADA_SKU;
+                            $ruta = self::RUTA_FTP_ENTRADA_SKU_TEST;
                         }break;
                     case self::TIPO_STOCK:
                        { 
-                            $ruta = self::RUTA_FTP_ENTRADA_STOCK;
+                            $ruta = self::RUTA_FTP_ENTRADA_STOCK_TEST;
                         }break;
                     case self::TIPO_PRECIO:
                         {
-                            $ruta = self::RUTA_FTP_ENTRADA_PRECIO;
+                            $ruta = self::RUTA_FTP_ENTRADA_PRECIO_TEST;
                         }break;
                 }
 
@@ -1312,7 +1369,8 @@ echo "<br>";
             $this->saveLog('Metodo: descargarFicheroXML => ' . $e->getMessage());
         }
 
-        return false;
+        //return false;
+								return true;  //modo de pruebas no procesa descarga de ficheros
     }
 
     private function subirFicheroXML()
@@ -1336,7 +1394,7 @@ echo "<br>";
                 foreach ($archivos as $archivo)
                 {
                     //WAC cambiar la ruta de salida a la de produccion cuando sea el momento
-                    if ($sftp->put(self::RUTA_FTP_SALIDA . $archivo, dirname(__FILE__) . '/ficheros/pedidos/' . $archivo, NET_SFTP_LOCAL_FILE))
+                    if ($sftp->put(self::RUTA_FTP_SALIDA_TEST . $archivo, dirname(__FILE__) . '/ficheros/pedidos/' . $archivo, NET_SFTP_LOCAL_FILE))
                         unlink(dirname(__FILE__) . '/ficheros/pedidos/' . $archivo);
                     else
                         $this->saveLog('Metodo: subirFicheroXML => ' . $sftp->getLastSFTPError());
