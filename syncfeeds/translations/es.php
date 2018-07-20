@@ -2,6 +2,7 @@
 
 global $_MODULE;
 $_MODULE = array();
+$_MODULE['<{syncfeeds}prestashop>syncfeeds_6eea92cd64af25ac278e11db397c5944'] = 'Sync Feeds';
 $_MODULE['<{syncfeeds}prestashop>syncfeeds_45b0adee2d33b027aebafa7a97d8728a'] = 'Sincronizar Productos';
 $_MODULE['<{syncfeeds}prestashop>syncfeeds_a816d178fe07cf02fb1eb3c95b6af7c3'] = 'Configuracion Dirección IP FTP Invalida.';
 $_MODULE['<{syncfeeds}prestashop>syncfeeds_65105c9a6f3236faf378d1a9847e56f6'] = 'Configuración de Nombre de Usuario Inválida.';
