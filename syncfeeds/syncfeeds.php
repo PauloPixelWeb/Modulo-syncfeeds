@@ -808,7 +808,9 @@ echo "<br>";
         return $tiendas;
     }
 
-    public function sincronizarPedidosDemand()
+    
+				/* SINCRONIZACION DE PEDIDOS EN DEMANDA */
+				public function sincronizarPedidosDemand()
     {
         if (function_exists('set_time_limit'))
             @set_time_limit(0);
@@ -824,6 +826,8 @@ echo "<br>";
             $NUMEROS_TIENDA = json_decode(self::NUMEROS_TIENDA, true);
             //Demand
             $estados_demand = Configuration::getMultiple(array('SF_DEMAND_NEW', 'SF_DEMAND_CANCEL'));
+												
+												//Generacion XML
             $xml = '<?xml version="1.0" encoding="UTF-8"?>
                 <eCommerceOrders>';
             foreach ($estados_demand as $estado_nombre => $estado_valor)
@@ -838,32 +842,16 @@ echo "<br>";
                     case 'SF_DEMAND_CANCEL':
                         $transaccion = 'Cancel';
                         $states = "$estado_valor,25,26";
-                        #$sql .= ' ON (`o`.`id_order`=`so`.`id_order` OR `o`.`id_order` NOT IN (select id_order from ps_syncfeeds_order where id_state in (6)))';
-                        #$sql .= ' WHERE ';
                         $sql .= 'WHERE (`so`.`id_order` IS NULL OR `o`.`id_order` NOT IN (select id_order from ps_syncfeeds_order where id_state in ('.$states.'))) ';
                         break;
                     default:
                         $transaccion = 'New';
                         $states = "$estado_valor,3,4,21,22,27";
-                        #$sql .= ' ON `o`.`id_order`=`so`.`id_order`';
-                        #$sql .= 'LEFT JOIN `'._DB_PREFIX_.'syncfeeds_order` `so` ON `o`.`id_order`=`so`.`id_order`'
-                        #. 'WHERE `so`.`id_order` IS NULL AND';
                         $sql .= ' WHERE `so`.`id_order` IS NULL ';
                         break;
                 }
                 $sql .= ' AND `o`.`date_upd`>"'.$ultima_generacion.'" AND `o`.`current_state` IN (' .$states.')';
-                #echo $sql."<br/>";continue;
                 $pedidos = Db::getInstance()->executeS($sql);
-                /*$pedidos = Db::getInstance()->executeS('SELECT `o`.`id_order`,`o`.`date_add`,`o`.`date_upd`,`o`.`reference`,`o`.`id_customer`,`o`.`id_address_delivery`,`o`.`id_address_invoice`,'
-                        . '`o`.`id_shop`,`o`.`id_carrier`,`o`.`module`,`o`.`total_shipping_tax_incl`,`o`.`total_paid_tax_incl`,`o`.`total_discounts_tax_incl`,`o`.`current_state`  '
-                        . 'FROM `' . _DB_PREFIX_ . 'orders` `o` '
-                        . 'LEFT JOIN `'._DB_PREFIX_.'syncfeeds_order` `so` ON `o`.`id_order`=`so`.`id_order`'
-                        . 'WHERE `so`.`id_order` IS NULL AND `o`.`date_upd`>"'.$ultima_generacion.'" AND `o`.`current_state` IN (' .$states.') AND `so`.`id_state` NOT IN ('.$states.')');
-                /*echo 'SELECT `o`.`id_order`,`o`.`date_add`,`o`.`date_upd`,`o`.`reference`,`o`.`id_customer`,`o`.`id_address_delivery`,`o`.`id_address_invoice`,'
-                        . '`o`.`id_shop`,`o`.`id_carrier`,`o`.`module`,`o`.`total_shipping_tax_incl`,`o`.`total_paid_tax_incl`,`o`.`total_discounts_tax_incl`,`o`.`current_state`  '
-                        . 'FROM `' . _DB_PREFIX_ . 'orders` `o` '
-                        . 'LEFT JOIN `'._DB_PREFIX_.'syncfeeds_order` `so` ON `o`.`id_order`=`so`.`id_order`'
-                        . 'WHERE `so`.`id_order` IS NULL AND `o`.`date_upd`>"'.$ultima_generacion.'" AND `o`.`current_state` IN (' .$states.')'."<br/>";*/
                 echo "<br/>";
                 foreach ($pedidos as $pedido){                 
                     echo "ORDER:".$pedido['id_order']."<br/>";
@@ -883,31 +871,29 @@ echo "<br>";
                             $metodo_envio = $METODOS_ENVIO[(int) $pedido['id_carrier']][0];
                             $dias_demora = (int) $METODOS_ENVIO[(int) $pedido['id_carrier']][1];
                         }
-                        #$delivery_date = date('Ymd', strtotime('+' . $dias_demora . ' day', strtotime($pedido['date_add'])));
-                        #echo "$dias_demora <br/>";
-                        #echo "$delivery_date <br/>";
+
                         ### RM MOdified in order to avoid ExpectedDeliveryDate Exception in POS ###
                         $delivery_date = date('Ymd', strtotime('+' . $dias_demora . ' day'));
-                        #echo "$delivery_date <br/>";continue;
+
                         $metodo_pago = 'XO';
-                        #var_dump($pedido['id_carrier']);
+
                         if (isset($METODOS_PAGO[$pedido['module']]))
                             $metodo_pago = $METODOS_PAGO[$pedido['module']];
                         $numero_tienda = '3286';
                         if (isset($NUMEROS_TIENDA[(int) $pedido['id_shop']]))
                             $numero_tienda = $NUMEROS_TIENDA[(int) $pedido['id_shop']];
-                        #var_dump($metodo_envio);
+																									
                         if ($pedido['id_carrier'] == 54){
                             $metodo_envio = 'Local Pickup';
                         }                        
                         if ($metodo_envio == 'Warehouse Shipment'){
                             $metodo_envio = 'Local Pickup';
                             $numero_referencia = '03286';
-                            //$numero_tienda = '2936';
+
                         }
                         elseif ($metodo_envio == 'Local Pickup' )
                             $numero_referencia = '03286';
-                            //$numero_referencia = '02935';
+
                         else{
                             $numero_referencia = str_pad($numero_tienda, 5, '0', STR_PAD_LEFT);
                         }
@@ -924,12 +910,9 @@ echo "<br>";
                                 $numero_referencia .= 'E56';
                                 break;
                         }
-                        //$numero_referencia .= str_pad($pedido['id_order'] % 1000, 4, '0', STR_PAD_LEFT) . date('Ymd', strtotime($pedido['date_add']));
+
                         $numero_referencia .= str_pad(($pedido['id_order']), 4, '0', STR_PAD_LEFT) . date('Ymd', strtotime($pedido['date_add']));
-                        //var_dump($numero_tienda);
-                        //var_dump($metodo_envio);
-                        //var_dump($numero_referencia);
-                        //die;
+
                         $consecutivo = 1;
                         $detalles_pedido = OrderDetail::getList($pedido['id_order']);
                         foreach ($detalles_pedido as $detalle)
@@ -937,9 +920,7 @@ echo "<br>";
                             if ($pedido['id_carrier'] == 54){
                                 $numero_tienda = '2936';
                             }
-                            #echo '</br>';
-                            #echo 'D: '. $metodo_envio;
-                            #echo 'D: '. $numero_tienda;
+
                             $total_amount = round((float) $detalle['product_quantity']) * round($detalle['product_price'],2);
                             $tax_excl = round((float) $detalle['total_price_tax_excl'],2);
                             $totaldiscountamount = abs($total_amount - $tax_excl);
@@ -1024,7 +1005,7 @@ echo "<br>";
                 }
             }
             $xml .= '</eCommerceOrders>';
-            #echo $xml;
+
             $xml = trim(preg_replace('/\t/', '', $xml));
             $generationDate = date('YmdHis');
 
@@ -1043,7 +1024,8 @@ echo "<br>";
             $this->saveLog('Metodo: sincronizarPedidosDemand, guardando: XML local => ' . $e->getMessage());
         }
 
-        $this->subirFicheroXML();
+										//Expone archivo XML en el servidor de LOWES
+								$this->subirFicheroXML();
         return true;
     }
 
@@ -1072,8 +1054,7 @@ echo "<br>";
                 $sql = 'SELECT po.`id_order`, po.`date_add`, po.`date_upd`,po.`reference`,po.`id_customer`,po.`id_address_delivery`,po.`id_address_invoice`,'
                         . ' po.`id_shop`,po.`id_carrier`,po.`module`,po.`total_shipping_tax_incl`,po.`total_paid_tax_incl`,po.`total_discounts_tax_incl` '
                         . ' FROM `' . _DB_PREFIX_ . 'orders` po ';
-                        #. ' LEFT JOIN ps_syncfeeds_order ps ON (po.id_order = ps.id_order and ps.id_state = '.(int) $estado_valor.')'
-                        #. ' WHERE po.`current_state`=' . (int) $estado_valor. ' and ps.id_order IS NULL ';
+
                 if($estado_nombre == 'SF_SALES_COMPLETE'){
                     $transaccion = 'Complete';
                     $states = $estado_valor;
@@ -1082,31 +1063,12 @@ echo "<br>";
                 }else{
 		continue;
 		}
-                /*switch ($estado_nombre)
-                {
-                    case 'SF_SALES_RETURN':
-                        $transaccion = 'Return';
-                        $states = "$estado_valor";
-                        $sql .= ' LEFT JOIN ps_syncfeeds_order ps ON (po.id_order = ps.id_order and ps.id_state in ('. $states .')) ';
-                        $sql .= ' WHERE po.`current_state` in (' . $states . ') and ps.id_order IS NULL ';                        
 
-                        break;
-                    default:
-                        $transaccion = 'Complete';
-                        $states = $estado_valor;
-                        $sql .= ' LEFT JOIN ps_syncfeeds_order ps ON (po.id_order = ps.id_order and ps.id_state = '. $states .') ';
-                        $sql .= ' WHERE po.`current_state`=' . $states . ' and ps.id_order IS NULL ';
-                        break;
-                }*/            
-                //echo $sql;
-                //continue;
                 $pedidos = Db::getInstance()->executeS($sql);
-                //var_dump($pedidos);
-                //die;
 		        echo "<br/>";
                 foreach ($pedidos as $pedido){
                 echo "ORDER:".$pedido['id_order']."<br/>";
-		        #echo 'SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'syncfeeds_order` WHERE `id_order`=' . $pedido['id_order'] . ' AND `id_state`= ' . $estado_valor."<br/>";
+
                     if (!Db::getInstance()->getValue('SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'syncfeeds_order` WHERE `id_order`=' . $pedido['id_order'] . ' AND `id_state`=' . $estado_valor))
                     {
                         #echo "IF COUNT<br/>";
@@ -1123,7 +1085,7 @@ echo "<br>";
                             $metodo_envio = $METODOS_ENVIO[(int) $pedido['id_carrier']][0];
                             $dias_demora = (int) $METODOS_ENVIO[(int) $pedido['id_carrier']][1];
                         }
-                        //$delivery_date = date('Ymd', strtotime('+' . $dias_demora . ' day', strtotime($pedido['date_add'])));
+
 			            $delivery_date = date('Ymd', strtotime('+' . $dias_demora . ' day'));
                         $metodo_pago = 'XO';
 
@@ -1135,9 +1097,7 @@ echo "<br>";
 
                         $consecutivo = 1;
                         $detalles_pedido = OrderDetail::getList($pedido['id_order']);
-                        //var_dump($xml);
-                        
-                        //die;
+
                         foreach ($detalles_pedido as $detalle)
                             if ($pedido['id_carrier'] == 54){
                                 $metodo_envio = 'Local Pickup';
@@ -1145,15 +1105,15 @@ echo "<br>";
                             if ($metodo_envio == 'Warehouse Shipment'){
                                 $metodo_envio = 'Local Pickup';
                                 $numero_referencia = '03286';
-                                //$numero_tienda = '2936';
+
                             }
                              elseif ($metodo_envio == 'Local Pickup' )
                                 $numero_referencia = '03286';
-                                //$numero_referencia = '02935';
+
                             else{
                                 $numero_referencia = str_pad($numero_tienda, 5, '0', STR_PAD_LEFT);
                             }
-                            //$numero_referencia = str_pad($numero_tienda, 5, '0', STR_PAD_LEFT);
+
                             switch ($metodo_envio)
                             {
                                 case 'Warehouse Shipment':
@@ -1166,21 +1126,17 @@ echo "<br>";
                                     $numero_referencia .= 'E56';
                                     break;
                             }
-                        //$numero_referencia .= str_pad($consecutivo, 4, '0', STR_PAD_LEFT) . date('Ymd', strtotime($pedido['date_add']));
-                        //$numero_referencia = $pedido['order_reference'];
+
                         $numero_referencia .= str_pad(($pedido['id_order']), 4, '0', STR_PAD_LEFT) . date('Ymd', strtotime($pedido['date_add']));                            
                         if ($consecutivo == 9999)
                         $consecutivo = 0;
-                        //$consecutivo++;
+
                         foreach ($detalles_pedido as $detalle)
                         {
                             if ($pedido['id_carrier'] == 54){
                                 $numero_tienda = '2936';
                             }
-                            #echo '</br>';
-                            #echo 'D: '. $metodo_envio;
-                            #echo 'D: '. $numero_tienda;                            
-                            #echo "detalles de: ".$pedido['id_order']."<br/>";
+
                             $total_amount = round((float) $detalle['product_quantity']) * round($detalle['product_price'],2);
                             $tax_excl = round((float) $detalle['total_price_tax_excl'],2);
                             $totaldiscountamount = abs($total_amount - $tax_excl);                            
@@ -1266,15 +1222,15 @@ echo "<br>";
                 }
             }
             $xml .= '</eCommerceOrders>';
-            #echo $xml;
+
             $xml = trim(preg_replace('/\t/', '', $xml));
-            //$archivo = dirname(__FILE__) . '/ficheros/pedidos/sales_' . date('YmdHis') . '.xml';
+
 	    if(strlen($xml) > 91){
 		$archivo = dirname(__FILE__) . '/ficheros/pedidos/sales_' . date('Ymd') . '.xml';
             	file_put_contents($archivo, $xml);
             	if(!file_exists(dirname(__FILE__) . '/ficheros/pedidos/generados/'))
                 mkdir(dirname(__FILE__) . '/ficheros/pedidos/generados/');
-            	#copy($archivo, dirname(__FILE__) . '/ficheros/pedidos/generados/sales_'.  date('Ymd') .'.xml');
+
 	   	copy($archivo, dirname(__FILE__) . '/ficheros/pedidos/generados/sales_'.  date('YmdHis') .'.xml');
 	    }
 
@@ -1369,8 +1325,8 @@ echo "<br>";
             $this->saveLog('Metodo: descargarFicheroXML => ' . $e->getMessage());
         }
 
-        //return false;
-								return true;  //modo de pruebas no procesa descarga de ficheros
+        return false;
+								//return true;  //modo de pruebas no procesa descarga de ficheros
     }
 
     private function subirFicheroXML()
