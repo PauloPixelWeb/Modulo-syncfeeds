@@ -7,9 +7,9 @@ $modulo = new SyncFeeds();
 if (Tools::getValue('token') == Tools::encrypt($modulo->name))
     if ($modulo->active)
     {
-        echo "Starting process...";
+        echo "<p>Starting process...</p>";
         $modulo->sincronizarProductos();
         $modulo->sincronizarSku();
-        echo "Synchronization process ended.";
+        echo "<p>Synchronization process ended.</p>";
     }
 ?>
