@@ -689,7 +689,9 @@ class SyncFeeds extends Module
 				*/
 				public function sincronizarExistencias()
     {
-        if (function_exists('set_time_limit'))
+        
+								echo "<p>- FUNCION SINCRONIZAR EXISTENCIAS -</p>";
+								if (function_exists('set_time_limit'))
             @set_time_limit(0);
         if ((int) Tools::substr(ini_get("memory_limit"), 0, -1) < 512)
             ini_set("memory_limit", "512M");
@@ -706,21 +708,42 @@ class SyncFeeds extends Module
                             $archivo = dirname(__FILE__) . '/ficheros/' . $archivo;
                             if ($fp = fopen($archivo, "r"))
                             {
-                                while (( $data = fgetcsv($fp, 50, "|")) !== FALSE)
-                                    if (isset($tiendas[$data[1]]))
-                                        if ($id_producto = (int) Db::getInstance()->getValue('SELECT `id_product` FROM ' . _DB_PREFIX_ . 'product WHERE `reference`="' . $data[0] . '"')){
-																																													//Esta funcion actualiza el stock disponible en la base de datos.
-																																												StockAvailable::setQuantity($id_producto, 0, (int) $data[2], $tiendas[$data[1]]);
+                                $sem = 0;
+																																while (( $data = fgetcsv($fp, 50, "|")) !== FALSE)
+                                    if (isset($tiendas[$data[1]])){
 																																		
-                                            Hook::exec('actionUpdateQuantitySyncfeeds', 
-                                                    array('product' => $id_producto,
-                                                        'stock' => $data[2],
-                                                        'shop' => $tiendas[$data[1]],));
+																																								//Query para traer id del producto y el stock actual en la base de datos
+																																								$sql_data = '
+																																													SELECT a.id_product,b.quantity
+																																													FROM ' . _DB_PREFIX_ . 'product a
+																																													LEFT JOIN ' . _DB_PREFIX_ . 'stock_available b on a.id_product = b.id_product
+																																													WHERE a.reference = "'.$data[0].'" and b.id_shop = "'.$tiendas[$data[1]].'"
+																																								';
+
+																																								if ($datox = Db::getInstance()->getRow($sql_data)){
+
+																																													//Condicional si el stock es diferente, evita que se realice proceso de actualizacion con la misma información
+																																													if($datox['quantity'] != $data[2]){
+
+																																														//Esta funcion actualiza el stock disponible en la base de datos.
+																																																		$sem++;
+																																																	//StockAvailable::setQuantity($id_producto, 0, (int) $data[2], $tiendas[$data[1]]);
+																																																	StockAvailable::setQuantity($datox['id_product'], 0, (int) $data[2], $tiendas[$data[1]]);
+																																							
+																																																	Hook::exec('actionUpdateQuantitySyncfeeds', 
+																																																									array('product' => datox['id_product'],
+																																																													'stock' => $data[2],
+																																																													'shop' => $tiendas[$data[1]],));
+																																													}
+																														
                                         }
+																																			}
                                 fclose($fp);
                                 Tools::deleteFile($archivo);
+																																echo '<p>Se han procesado "'.$sem.'" registros</p>';
                                 break;
                             }
+																												
                         }
                         catch (Exception $e)
                         {
@@ -1325,8 +1348,8 @@ echo "<br>";
             $this->saveLog('Metodo: descargarFicheroXML => ' . $e->getMessage());
         }
 
-        return false;
-								//return true;  //modo de pruebas no procesa descarga de ficheros
+        //return false;
+								return true;  //modo de pruebas no procesa descarga de ficheros
     }
 
     private function subirFicheroXML()
